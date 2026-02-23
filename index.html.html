@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Project Build Framework</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #181b24;
+    --border: #2a2e3a;
+    --text: #e8e8ed;
+    --text-muted: #8b8fa3;
+    --memory: #f59e0b;
+    --memory-bg: rgba(245, 158, 11, 0.08);
+    --memory-border: rgba(245, 158, 11, 0.25);
+    --instructions: #3b82f6;
+    --instructions-bg: rgba(59, 130, 246, 0.08);
+    --instructions-border: rgba(59, 130, 246, 0.25);
+    --files: #8b5cf6;
+    --files-bg: rgba(139, 92, 246, 0.08);
+    --files-border: rgba(139, 92, 246, 0.25);
+    --notion: #10b981;
+    --notion-bg: rgba(16, 185, 129, 0.08);
+    --notion-border: rgba(16, 185, 129, 0.25);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 2rem;
+    line-height: 1.6;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
+  .header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.2rem;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+  }
+
+  .header p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .analogy {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    max-width: 680px;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  .analogy strong { color: var(--text); }
+
+  .stack {
+    max-width: 680px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+
+  .layer {
+    border: 1px solid var(--border);
+    padding: 1.5rem 1.75rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .layer:first-child { border-radius: 16px 16px 0 0; }
+  .layer:last-child { border-radius: 0 0 16px 16px; }
+  .layer + .layer { border-top: none; }
+
+  .layer::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    transition: width 0.3s ease;
+  }
+
+  .layer.memory { background: var(--memory-bg); }
+  .layer.memory::before { background: var(--memory); }
+  .layer.memory .layer-number { background: var(--memory); }
+  .layer.memory .tag { border-color: var(--memory-border); color: var(--memory); }
+
+  .layer.instructions { background: var(--instructions-bg); }
+  .layer.instructions::before { background: var(--instructions); }
+  .layer.instructions .layer-number { background: var(--instructions); }
+  .layer.instructions .tag { border-color: var(--instructions-border); color: var(--instructions); }
+
+  .layer.files { background: var(--files-bg); }
+  .layer.files::before { background: var(--files); }
+  .layer.files .layer-number { background: var(--files); }
+  .layer.files .tag { border-color: var(--files-border); color: var(--files); }
+
+  .layer.notion { background: var(--notion-bg); }
+  .layer.notion::before { background: var(--notion); }
+  .layer.notion .layer-number { background: var(--notion); }
+  .layer.notion .tag { border-color: var(--notion-border); color: var(--notion); }
+
+  .layer:hover::before { width: 6px; }
+  .layer:hover { transform: translateX(2px); }
+
+  .layer-top {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin-bottom: 0.15rem;
+  }
+
+  .layer-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--bg);
+    flex-shrink: 0;
+  }
+
+  .layer-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.3rem;
+    letter-spacing: -0.01em;
+  }
+
+  .layer-metaphor {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-left: 3.1rem;
+    margin-bottom: 0.75rem;
+    font-style: italic;
+  }
+
+  .layer-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, opacity 0.3s ease;
+    opacity: 0;
+    margin-left: 3.1rem;
+  }
+
+  .layer.active .layer-details {
+    max-height: 600px;
+    opacity: 1;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .detail-box h4 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 0.4rem;
+  }
+
+  .detail-box ul {
+    list-style: none;
+    font-size: 0.85rem;
+  }
+
+  .detail-box li {
+    padding: 0.2rem 0;
+    position: relative;
+    padding-left: 0.9rem;
+  }
+
+  .detail-box li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    margin-left: 3.1rem;
+  }
+
+  .tag {
+    font-size: 0.72rem;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid;
+    border-radius: 100px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .expand-hint {
+    position: absolute;
+    right: 1.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    transition: transform 0.3s ease;
+  }
+
+  .layer.active .expand-hint {
+    transform: translateY(-50%) rotate(90deg);
+  }
+
+  .decision-section {
+    max-width: 680px;
+    margin: 2.5rem auto 0;
+  }
+
+  .decision-section h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+
+  .decision-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .decision-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto auto;
+    gap: 0;
+    align-items: center;
+    font-size: 0.82rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .decision-row.header-row {
+    background: transparent;
+    border: none;
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+
+  .decision-row > * {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .decision-row .question {
+    color: var(--text);
+  }
+
+  .decision-row .check {
+    text-align: center;
+    width: 70px;
+    font-size: 0.9rem;
+  }
+
+  .decision-row.header-row .check {
+    font-size: 0.65rem;
+  }
+
+  .check.yes { color: #4ade80; }
+  .check.no { color: #4b5563; }
+
+  .footer {
+    text-align: center;
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    max-width: 680px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 1rem; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .decision-row { grid-template-columns: 1fr auto auto auto auto; font-size: 0.75rem; }
+    .decision-row .check { width: 50px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>The Four Layers</h1>
+  <p>Every Claude Project has four places to put information. Each has a job and a cost. Click each layer to explore.</p>
+</div>
+
+<div class="analogy">
+  Think of it like a person showing up to work:<br>
+  <strong style="color:var(--memory)">Memory</strong> = what they know about you personally · 
+  <strong style="color:var(--instructions)">Instructions</strong> = their job description · 
+  <strong style="color:var(--files)">Files</strong> = reference binders on the shelf · 
+  <strong style="color:var(--notion)">Notion</strong> = the shared company wiki
+</div>
+
+<div class="stack">
+
+  <!-- MEMORY -->
+  <div class="layer memory" onclick="toggle(this)">
+    <span class="expand-hint">›</span>
+    <div class="layer-top">
+      <div class="layer-number">1</div>
+      <div class="layer-title">Memory</div>
+    </div>
+    <div class="layer-metaphor">What Claude recalls about you across every conversation</div>
+    <div class="tags">
+      <span class="tag">Persistent</span>
+      <span class="tag">Short facts</span>
+      <span class="tag">Always loaded</span>
+      <span class="tag">Max 200 chars each</span>
+    </div>
+    <div class="layer-details">
+      <div class="detail-grid">
+        <div class="detail-box">
+          <h4>Put here ✓</h4>
+          <ul>
+            <li>Your name, role, preferences</li>
+            <li>Claude's role in this project</li>
+            <li>Key Notion IDs & locations</li>
+            <li>Stable preferences & style</li>
+            <li>Cross-project context</li>
+          </ul>
+        </div>
+        <div class="detail-box">
+          <h4>Not here ✗</h4>
+          <ul>
+            <li>Detailed instructions</li>
+            <li>Process steps or workflows</li>
+            <li>Frequently changing info</li>
+            <li>Templates or long content</li>
+            <li>Strategy documents</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSTRUCTIONS -->
+  <div class="layer instructions" onclick="toggle(this)">
+    <span class="expand-hint">›</span>
+    <div class="layer-top">
+      <div class="layer-number">2</div>
+      <div class="layer-title">Instructions</div>
+    </div>
+    <div class="layer-metaphor">The system prompt Claude reads before every single message</div>
+    <div class="tags">
+      <span class="tag">Most influential</span>
+      <span class="tag">Loads every message</span>
+      <span class="tag">Keep lean ~1500 words</span>
+    </div>
+    <div class="layer-details">
+      <div class="detail-grid">
+        <div class="detail-box">
+          <h4>Put here ✓</h4>
+          <ul>
+            <li>Role definition & personality</li>
+            <li>Scope & boundaries</li>
+            <li>Behavioral rules (always/never)</li>
+            <li>Output preferences & tone</li>
+            <li>Key workflows (brief)</li>
+            <li>File & Notion references</li>
+          </ul>
+        </div>
+        <div class="detail-box">
+          <h4>Not here ✗</h4>
+          <ul>
+            <li>Long reference material</li>
+            <li>Data that changes often</li>
+            <li>Full examples or templates</li>
+            <li>Detailed how-to guides</li>
+            <li>Info only needed sometimes</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILES -->
+  <div class="layer files" onclick="toggle(this)">
+    <span class="expand-hint">›</span>
+    <div class="layer-top">
+      <div class="layer-number">3</div>
+      <div class="layer-title">Files</div>
+    </div>
+    <div class="layer-metaphor">Reference documents Claude searches when relevant — not read every message</div>
+    <div class="tags">
+      <span class="tag">Deep reference</span>
+      <span class="tag">Searched on demand</span>
+      <span class="tag">3–7 files ideal</span>
+    </div>
+    <div class="layer-details">
+      <div class="detail-grid">
+        <div class="detail-box">
+          <h4>Put here ✓</h4>
+          <ul>
+            <li>Reference guides & how-tos</li>
+            <li>Templates & example banks</li>
+            <li>Strategy & framework docs</li>
+            <li>Technical specs & API docs</li>
+            <li>Project registries</li>
+          </ul>
+        </div>
+        <div class="detail-box">
+          <h4>Not here ✗</h4>
+          <ul>
+            <li>Data that changes weekly+</li>
+            <li>Short facts (use memory)</li>
+            <li>Behavioral rules (use instructions)</li>
+            <li>Large datasets (use Notion)</li>
+            <li>Docs rarely needed</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTION -->
+  <div class="layer notion" onclick="toggle(this)">
+    <span class="expand-hint">›</span>
+    <div class="layer-top">
+      <div class="layer-number">4</div>
+      <div class="layer-title">Notion</div>
+    </div>
+    <div class="layer-metaphor">Living documents fetched on demand — the only layer that updates in real time</div>
+    <div class="tags">
+      <span class="tag">Dynamic data</span>
+      <span class="tag">Tool call to fetch</span>
+      <span class="tag">Always current</span>
+    </div>
+    <div class="layer-details">
+      <div class="detail-grid">
+        <div class="detail-box">
+          <h4>Put here ✓</h4>
+          <ul>
+            <li>Databases & trackers</li>
+            <li>Logs & decision history</li>
+            <li>Status dashboards</li>
+            <li>Cross-project shared pages</li>
+            <li>Anything "what's the latest?"</li>
+          </ul>
+        </div>
+        <div class="detail-box">
+          <h4>Not here ✗</h4>
+          <ul>
+            <li>Behavioral rules (use instructions)</li>
+            <li>Stable reference material (use files)</li>
+            <li>Personal preferences (use memory)</li>
+            <li>Detailed guides (use files)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- DECISION MATRIX -->
+<div class="decision-section">
+  <h2>Quick Decision Matrix</h2>
+  <div class="decision-grid">
+    <div class="decision-row header-row">
+      <div class="question"></div>
+      <div class="check" style="color:var(--memory)">Mem</div>
+      <div class="check" style="color:var(--instructions)">Instr</div>
+      <div class="check" style="color:var(--files)">Files</div>
+      <div class="check" style="color:var(--notion)">Notion</div>
+    </div>
+    <div class="decision-row">
+      <div class="question">Needed every conversation?</div>
+      <div class="check yes">✓</div>
+      <div class="check yes">✓</div>
+      <div class="check no">—</div>
+      <div class="check no">—</div>
+    </div>
+    <div class="decision-row">
+      <div class="question">Longer than 200 characters?</div>
+      <div class="check no">—</div>
+      <div class="check yes">✓</div>
+      <div class="check yes">✓</div>
+      <div class="check yes">✓</div>
+    </div>
+    <div class="decision-row">
+      <div class="question">Changes frequently?</div>
+      <div class="check no">—</div>
+      <div class="check no">—</div>
+      <div class="check no">—</div>
+      <div class="check yes">✓</div>
+    </div>
+    <div class="decision-row">
+      <div class="question">Detailed reference material?</div>
+      <div class="check no">—</div>
+      <div class="check no">—</div>
+      <div class="check yes">✓</div>
+      <div class="check no">—</div>
+    </div>
+    <div class="decision-row">
+      <div class="question">Database or tracker?</div>
+      <div class="check no">—</div>
+      <div class="check no">—</div>
+      <div class="check no">—</div>
+      <div class="check yes">✓</div>
+    </div>
+    <div class="decision-row">
+      <div class="question">About you personally?</div>
+      <div class="check yes">✓</div>
+      <div class="check no">—</div>
+      <div class="check no">—</div>
+      <div class="check no">—</div>
+    </div>
+    <div class="decision-row">
+      <div class="question">Claude's behavior/personality?</div>
+      <div class="check no">—</div>
+      <div class="check yes">✓</div>
+      <div class="check no">—</div>
+      <div class="check no">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Claude Project Build Framework · Prompt Engineer · Tools & Systems<br>
+  Click any layer to expand · Use this when building or restructuring any project
+</div>
+
+<script>
+function toggle(el) {
+  const wasActive = el.classList.contains('active');
+  document.querySelectorAll('.layer').forEach(l => l.classList.remove('active'));
+  if (!wasActive) el.classList.add('active');
+}
+</script>
+
+</body>
+</html>
